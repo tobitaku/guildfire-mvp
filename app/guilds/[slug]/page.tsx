@@ -45,7 +45,7 @@ export default async function GuildPage({ params }: GuildPageProps) {
             {guild.channels.length === 0 ? (
               <p className="text-sm text-muted-foreground">No channels yet.</p>
             ) : (
-              guild.channels.map((channel) => (
+              guild.channels.map((channel: (typeof guild.channels)[number]) => (
                 <Link
                   key={channel.id}
                   href={`/channels/${channel.id}`}
