@@ -52,9 +52,9 @@ export default async function ChannelPage({ params }: ChannelPageProps) {
     if (!title) return;
 
     const caller = await createCaller();
-    await caller.thread.create({ channelId: channel.id, title });
+    await caller.thread.create({ channelId, title });
 
-    revalidatePath(`/channels/${channel.id}`);
+    revalidatePath(`/channels/${channelId}`);
   }
 
   return (
@@ -94,7 +94,7 @@ export default async function ChannelPage({ params }: ChannelPageProps) {
               {channel.threads.length === 0 ? (
                 <p className="text-sm text-muted-foreground">No threads yet.</p>
               ) : (
-                channel.threads.map((thread) => (
+                channel.threads.map((thread: (typeof channel.threads)[number]) => (
                   <Link
                     key={thread.id}
                     href={`/threads/${thread.id}`}

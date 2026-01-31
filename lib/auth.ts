@@ -31,7 +31,7 @@ export const authOptions: NextAuthOptions = {
           (discordProfile?.id ? `user-${discordProfile.id}` : "member");
 
         const user = await prisma.user.upsert({
-          where: email ? { email } : { username: fallbackUsername },
+          where: { email: email ?? `${discordProfile?.id ?? token.sub ?? fallbackUsername}@guildfire.local` },
           update: {
             username: fallbackUsername,
             displayName: discordProfile?.global_name ?? token.name ?? null,
@@ -40,7 +40,7 @@ export const authOptions: NextAuthOptions = {
           create: {
             username: fallbackUsername,
             displayName: discordProfile?.global_name ?? token.name ?? null,
-            email,
+            email: email ?? `${discordProfile?.id ?? token.sub ?? fallbackUsername}@guildfire.local`,
             imageUrl: token.picture ?? null,
           },
         });

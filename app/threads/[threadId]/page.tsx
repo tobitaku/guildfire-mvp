@@ -56,9 +56,9 @@ export default async function ThreadPage({ params }: ThreadPageProps) {
     if (!content) return;
 
     const caller = await createCaller();
-    await caller.message.create({ threadId: thread.id, content });
+    await caller.message.create({ threadId, content });
 
-    revalidatePath(`/threads/${thread.id}`);
+    revalidatePath(`/threads/${threadId}`);
   }
 
   async function editMessageAction(formData: FormData) {
@@ -70,7 +70,7 @@ export default async function ThreadPage({ params }: ThreadPageProps) {
     const caller = await createCaller();
     await caller.message.update({ messageId, content });
 
-    revalidatePath(`/threads/${thread.id}`);
+    revalidatePath(`/threads/${threadId}`);
   }
 
   async function deleteMessageAction(formData: FormData) {
@@ -81,7 +81,7 @@ export default async function ThreadPage({ params }: ThreadPageProps) {
     const caller = await createCaller();
     await caller.message.delete({ messageId });
 
-    revalidatePath(`/threads/${thread.id}`);
+    revalidatePath(`/threads/${threadId}`);
   }
 
   async function toggleReactionAction(formData: FormData) {
@@ -93,15 +93,15 @@ export default async function ThreadPage({ params }: ThreadPageProps) {
     const caller = await createCaller();
     await caller.reaction.toggle({ messageId, emoji });
 
-    revalidatePath(`/threads/${thread.id}`);
+    revalidatePath(`/threads/${threadId}`);
   }
 
   async function toggleLockAction(formData: FormData) {
     "use server";
     const locked = formData.get("locked") === "true";
     const caller = await createCaller();
-    await caller.thread.toggleLock({ threadId: thread.id, locked });
-    revalidatePath(`/threads/${thread.id}`);
+    await caller.thread.toggleLock({ threadId, locked });
+    revalidatePath(`/threads/${threadId}`);
   }
 
   const reactions = await prisma.messageReaction.groupBy({
