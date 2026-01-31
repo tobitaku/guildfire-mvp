@@ -1,40 +1,65 @@
 This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
 
-## Getting Started
+## Prerequisites
 
-First, run the development server:
+- Node.js `>=20.19` (required by Next.js + Prisma)
+- Docker (for local Postgres)
+- A Discord OAuth app (for login)
+
+## Setup (Local)
+
+1. Install dependencies:
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+npm install
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+2. Configure environment variables:
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```bash
+cp .env.example .env
+```
 
-## Database (Prisma + Postgres)
+Fill in:
+- `DATABASE_URL`
+- `NEXTAUTH_URL` (e.g. `http://localhost:3000`)
+- `NEXTAUTH_SECRET` (e.g. `openssl rand -base64 32`)
+- `DISCORD_CLIENT_ID` / `DISCORD_CLIENT_SECRET`
 
-1. Copy `.env.example` to `.env` and adjust if needed.
-2. Start Postgres locally:
+3. Configure Discord OAuth redirect URL:
+
+```
+http://localhost:3000/api/auth/callback/discord
+```
+
+4. Start Postgres:
 
 ```bash
 docker compose up -d
 ```
 
-3. Generate the Prisma client and push the schema:
+5. Generate Prisma client and push schema:
 
 ```bash
 npm run db:generate
 npm run db:push
 ```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+6. Seed optional demo data:
+
+```bash
+npm run db:seed
+```
+
+7. Start the dev server:
+
+```bash
+npm run dev
+```
+
+Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+
+You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
 
 ## Learn More
 
