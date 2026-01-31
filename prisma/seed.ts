@@ -216,6 +216,97 @@ async function main() {
       });
     }
   }
+
+  const [seedMemberRole] = await prisma.role.findMany({
+    where: { guildId: guild.id, name: "Member" },
+    take: 1,
+  });
+
+  const demoUsers = ["alex", "mara", "jun", "sami"];
+  const emojiPool = ["👍", "🔥", "🎮", "❤️", "😄"];
+
+  const seededUsers = await Promise.all(
+    demoUsers.map((username, index) => {
+      const email = `${username}@guildfire.local`;
+      return prisma.user.upsert({
+        where: { email },
+        update: {},
+        create: {
+          username,
+          displayName: username.toUpperCase(),
+          email,
+          imageUrl: null,
+          createdAt: new Date(Date.now() - (index + 1) * 1000 * 60),
+        },
+      });
+    })
+  );
+
+  for (const user of seededUsers) {
+    await prisma.guildMember.upsert({
+      where: {
+        guildId_userId: {
+          guildId: guild.id,
+          userId: user.id,
+        },
+      },
+      update: {},
+      create: {
+        guildId: guild.id,
+        userId: user.id,
+        nickname: user.displayName ?? null,
+      },
+    });
+
+    if (seedMemberRole) {
+      await prisma.memberRole.upsert({
+        where: {
+          guildId_userId_roleId: {
+            guildId: guild.id,
+            userId: user.id,
+            roleId: seedMemberRole.id,
+          },
+        },
+        update: {},
+        create: {
+          guildId: guild.id,
+          userId: user.id,
+          roleId: seedMemberRole.id,
+        },
+      });
+    }
+  }
+
+  const messages = await prisma.message.findMany({
+    where: {
+      thread: {
+        channel: {
+          guildId: guild.id,
+        },
+      },
+    },
+    select: { id: true },
+  });
+
+  const reactionSeeds: { messageId: string; userId: string; emoji: string }[] = [];
+
+  for (const message of messages.slice(0, 8)) {
+    for (const [index, user] of seededUsers.entries()) {
+      const emoji = emojiPool[(index + message.id.length) % emojiPool.length];
+      reactionSeeds.push({
+        messageId: message.id,
+        userId: user.id,
+        emoji,
+      });
+    }
+  }
+
+  if (reactionSeeds.length > 0) {
+    await prisma.messageReaction.createMany({
+      data: reactionSeeds,
+      skipDuplicates: true,
+    });
+  }
 }
 
 main()

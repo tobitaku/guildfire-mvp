@@ -121,6 +121,88 @@ export default async function ThreadPage({ params }: ThreadPageProps) {
     revalidatePath(`/threads/${thread.id}`);
   }
 
+  async function toggleReactionAction(formData: FormData) {
+    "use server";
+    const messageId = String(formData.get("messageId") ?? "");
+    const emoji = String(formData.get("emoji") ?? "").trim();
+    if (!messageId || !emoji) return;
+
+    const currentSession = await getServerSession(authOptions);
+    if (!currentSession?.user?.id) return;
+
+    const existing = await prisma.messageReaction.findUnique({
+      where: {
+        messageId_userId_emoji: {
+          messageId,
+          userId: currentSession.user.id,
+          emoji,
+        },
+      },
+      select: { messageId: true },
+    });
+
+    if (existing) {
+      await prisma.messageReaction.delete({
+        where: {
+          messageId_userId_emoji: {
+            messageId,
+            userId: currentSession.user.id,
+            emoji,
+          },
+        },
+      });
+    } else {
+      await prisma.messageReaction.create({
+        data: {
+          messageId,
+          userId: currentSession.user.id,
+          emoji,
+        },
+      });
+    }
+
+    revalidatePath(`/threads/${thread.id}`);
+  }
+
+  const reactions = await prisma.messageReaction.groupBy({
+    by: ["messageId", "emoji"],
+    _count: { emoji: true },
+    where: {
+      messageId: {
+        in: thread?.messages.map((message) => message.id) ?? [],
+      },
+    },
+  });
+
+  const reactionsByMessage = reactions.reduce<Record<string, { emoji: string; count: number }[]>>(
+    (acc, reaction) => {
+      acc[reaction.messageId] ??= [];
+      acc[reaction.messageId].push({
+        emoji: reaction.emoji,
+        count: reaction._count.emoji,
+      });
+      return acc;
+    },
+    {}
+  );
+
+  const userReactionKeys = new Set<string>();
+  if (session?.user?.id) {
+    const userReactions = await prisma.messageReaction.findMany({
+      where: {
+        userId: session.user.id,
+        messageId: {
+          in: thread?.messages.map((message) => message.id) ?? [],
+        },
+      },
+      select: { messageId: true, emoji: true },
+    });
+
+    for (const reaction of userReactions) {
+      userReactionKeys.add(`${reaction.messageId}:${reaction.emoji}`);
+    }
+  }
+
   return (
     <main className="min-h-screen bg-[#14151f] text-foreground">
       <div className="mx-auto w-full max-w-5xl px-6 py-16">
@@ -161,6 +243,9 @@ export default async function ThreadPage({ params }: ThreadPageProps) {
                     canEdit={session?.user?.id === message.authorId}
                     onEdit={editMessageAction}
                     onDelete={deleteMessageAction}
+                    onToggleReaction={toggleReactionAction}
+                    reactions={reactionsByMessage[message.id] ?? []}
+                    userReactionKeys={userReactionKeys}
                   />
                 ))}
               </div>

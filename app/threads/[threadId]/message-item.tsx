@@ -24,6 +24,9 @@ type MessageItemProps = {
   canEdit: boolean;
   onEdit: (formData: FormData) => void;
   onDelete: (formData: FormData) => void;
+  onToggleReaction: (formData: FormData) => void;
+  reactions: { emoji: string; count: number }[];
+  userReactionKeys: Set<string>;
 };
 
 export function MessageItem({
@@ -36,9 +39,14 @@ export function MessageItem({
   canEdit,
   onEdit,
   onDelete,
+  onToggleReaction,
+  reactions,
+  userReactionKeys,
 }: MessageItemProps) {
   const [isEditing, setIsEditing] = useState(false);
   const deleteFormRef = useRef<HTMLFormElement | null>(null);
+  const reactionEmojis = ["👍", "🔥", "🎮", "❤️", "😄"];
+  const existingEmojiSet = new Set(reactions.map((reaction) => reaction.emoji));
 
   return (
     <div className="rounded-md border border-border/60 bg-[#1b1d2b] px-4 py-3 text-sm">
@@ -76,6 +84,46 @@ export function MessageItem({
           {editedAtLabel ? (
             <p className="mt-1 text-xs text-muted-foreground">Edited</p>
           ) : null}
+          <div className="mt-3 flex flex-wrap items-center gap-2">
+            {reactions.map((reaction) => {
+              const isActive = userReactionKeys.has(`${id}:${reaction.emoji}`);
+              return (
+                <form key={`${id}-${reaction.emoji}`} action={onToggleReaction}>
+                  <input type="hidden" name="messageId" value={id} />
+                  <input type="hidden" name="emoji" value={reaction.emoji} />
+                  <button
+                    type="submit"
+                    className={`rounded-full border px-2 py-1 text-xs transition ${
+                      isActive
+                        ? "border-primary/80 bg-primary/20 text-primary-foreground"
+                        : "border-border/60 bg-[#232539] text-muted-foreground hover:text-white"
+                    }`}
+                  >
+                    {reaction.emoji} {reaction.count}
+                  </button>
+                </form>
+              );
+            })}
+            {reactionEmojis.filter((emoji) => !existingEmojiSet.has(emoji)).map((emoji) => {
+              const isActive = userReactionKeys.has(`${id}:${emoji}`);
+              return (
+                <form key={`${id}-${emoji}-toggle`} action={onToggleReaction}>
+                  <input type="hidden" name="messageId" value={id} />
+                  <input type="hidden" name="emoji" value={emoji} />
+                  <button
+                    type="submit"
+                    className={`rounded-full border px-2 py-1 text-xs transition ${
+                      isActive
+                        ? "border-primary/80 bg-primary/20 text-primary-foreground"
+                        : "border-border/60 bg-[#232539] text-muted-foreground hover:text-white"
+                    }`}
+                  >
+                    {emoji}
+                  </button>
+                </form>
+              );
+            })}
+          </div>
         </>
       )}
 
