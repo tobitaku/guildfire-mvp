@@ -4,6 +4,7 @@ import { getServerSession } from "next-auth";
 
 import { prisma } from "@/lib/prisma";
 import { authOptions } from "@/lib/auth";
+import { createCaller } from "@/lib/trpc/server";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -50,16 +51,8 @@ export default async function ChannelPage({ params }: ChannelPageProps) {
     const title = String(formData.get("title") ?? "").trim();
     if (!title) return;
 
-    const currentSession = await getServerSession(authOptions);
-    if (!currentSession?.user?.id) return;
-
-    await prisma.thread.create({
-      data: {
-        title,
-        channelId: channel.id,
-        createdById: currentSession.user.id,
-      },
-    });
+    const caller = await createCaller();
+    await caller.thread.create({ channelId: channel.id, title });
 
     revalidatePath(`/channels/${channel.id}`);
   }

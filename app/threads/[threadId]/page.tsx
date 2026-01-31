@@ -4,6 +4,7 @@ import { getServerSession } from "next-auth";
 
 import { prisma } from "@/lib/prisma";
 import { authOptions } from "@/lib/auth";
+import { createCaller } from "@/lib/trpc/server";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
@@ -54,16 +55,8 @@ export default async function ThreadPage({ params }: ThreadPageProps) {
     const content = String(formData.get("content") ?? "").trim();
     if (!content) return;
 
-    const currentSession = await getServerSession(authOptions);
-    if (!currentSession?.user?.id) return;
-
-    await prisma.message.create({
-      data: {
-        threadId: thread.id,
-        authorId: currentSession.user.id,
-        content,
-      },
-    });
+    const caller = await createCaller();
+    await caller.message.create({ threadId: thread.id, content });
 
     revalidatePath(`/threads/${thread.id}`);
   }
@@ -74,23 +67,8 @@ export default async function ThreadPage({ params }: ThreadPageProps) {
     const content = String(formData.get("content") ?? "").trim();
     if (!messageId || !content) return;
 
-    const currentSession = await getServerSession(authOptions);
-    if (!currentSession?.user?.id) return;
-
-    const message = await prisma.message.findUnique({
-      where: { id: messageId },
-      select: { authorId: true },
-    });
-
-    if (!message || message.authorId !== currentSession.user.id) return;
-
-    await prisma.message.update({
-      where: { id: messageId },
-      data: {
-        content,
-        editedAt: new Date(),
-      },
-    });
+    const caller = await createCaller();
+    await caller.message.update({ messageId, content });
 
     revalidatePath(`/threads/${thread.id}`);
   }
@@ -100,23 +78,8 @@ export default async function ThreadPage({ params }: ThreadPageProps) {
     const messageId = String(formData.get("messageId") ?? "");
     if (!messageId) return;
 
-    const currentSession = await getServerSession(authOptions);
-    if (!currentSession?.user?.id) return;
-
-    const message = await prisma.message.findUnique({
-      where: { id: messageId },
-      select: { authorId: true },
-    });
-
-    if (!message || message.authorId !== currentSession.user.id) return;
-
-    await prisma.message.update({
-      where: { id: messageId },
-      data: {
-        deletedAt: new Date(),
-        deletedById: currentSession.user.id,
-      },
-    });
+    const caller = await createCaller();
+    await caller.message.delete({ messageId });
 
     revalidatePath(`/threads/${thread.id}`);
   }
@@ -127,40 +90,17 @@ export default async function ThreadPage({ params }: ThreadPageProps) {
     const emoji = String(formData.get("emoji") ?? "").trim();
     if (!messageId || !emoji) return;
 
-    const currentSession = await getServerSession(authOptions);
-    if (!currentSession?.user?.id) return;
+    const caller = await createCaller();
+    await caller.reaction.toggle({ messageId, emoji });
 
-    const existing = await prisma.messageReaction.findUnique({
-      where: {
-        messageId_userId_emoji: {
-          messageId,
-          userId: currentSession.user.id,
-          emoji,
-        },
-      },
-      select: { messageId: true },
-    });
+    revalidatePath(`/threads/${thread.id}`);
+  }
 
-    if (existing) {
-      await prisma.messageReaction.delete({
-        where: {
-          messageId_userId_emoji: {
-            messageId,
-            userId: currentSession.user.id,
-            emoji,
-          },
-        },
-      });
-    } else {
-      await prisma.messageReaction.create({
-        data: {
-          messageId,
-          userId: currentSession.user.id,
-          emoji,
-        },
-      });
-    }
-
+  async function toggleLockAction(formData: FormData) {
+    "use server";
+    const locked = formData.get("locked") === "true";
+    const caller = await createCaller();
+    await caller.thread.toggleLock({ threadId: thread.id, locked });
     revalidatePath(`/threads/${thread.id}`);
   }
 
@@ -203,6 +143,19 @@ export default async function ThreadPage({ params }: ThreadPageProps) {
     }
   }
 
+  const isAdmin = session?.user?.id
+    ? Boolean(
+        await prisma.memberRole.findFirst({
+          where: {
+            userId: session.user.id,
+            guildId: thread.channel.guildId,
+            role: { name: "Admin" },
+          },
+          select: { roleId: true },
+        })
+      )
+    : false;
+
   return (
     <main className="min-h-screen bg-[#14151f] text-foreground">
       <div className="mx-auto w-full max-w-5xl px-6 py-16">
@@ -213,9 +166,20 @@ export default async function ThreadPage({ params }: ThreadPageProps) {
           >
             ← Back to threads
           </Link>
-          <h1 className="text-3xl font-semibold text-white">{thread.title}</h1>
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <h1 className="text-3xl font-semibold text-white">{thread.title}</h1>
+            {isAdmin ? (
+              <form action={toggleLockAction}>
+                <input type="hidden" name="locked" value={String(!thread.isLocked)} />
+                <Button type="submit" size="sm" variant={thread.isLocked ? "secondary" : "default"}>
+                  {thread.isLocked ? "Unlock thread" : "Lock thread"}
+                </Button>
+              </form>
+            ) : null}
+          </div>
           <p className="text-sm text-muted-foreground">
             #{thread.channel.name} · {thread.channel.guild.name}
+            {thread.isLocked ? " · Locked" : ""}
           </p>
         </div>
 
@@ -251,7 +215,7 @@ export default async function ThreadPage({ params }: ThreadPageProps) {
               </div>
             )}
 
-            {session?.user ? (
+            {session?.user && (!thread.isLocked || isAdmin) ? (
               <form action={createMessageAction} className="flex flex-col gap-3">
                 <Textarea name="content" placeholder="Write a message..." />
                 <Button type="submit" className="w-fit">
@@ -259,7 +223,11 @@ export default async function ThreadPage({ params }: ThreadPageProps) {
                 </Button>
               </form>
             ) : (
-              <p className="text-sm text-muted-foreground">Sign in to send messages.</p>
+              <p className="text-sm text-muted-foreground">
+                {session?.user
+                  ? "This thread is locked. Only admins can post."
+                  : "Sign in to send messages."}
+              </p>
             )}
           </CardContent>
         </Card>
