@@ -18,6 +18,22 @@ Open [http://localhost:3000](http://localhost:3000) with your browser to see the
 
 You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
 
+## Database (Prisma + Postgres)
+
+1. Copy `.env.example` to `.env` and adjust if needed.
+2. Start Postgres locally:
+
+```bash
+docker compose up -d
+```
+
+3. Generate the Prisma client and push the schema:
+
+```bash
+npm run db:generate
+npm run db:push
+```
+
 This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
 
 ## Learn More
