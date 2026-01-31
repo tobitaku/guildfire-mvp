@@ -118,7 +118,7 @@ export default async function ThreadPage({ params }: ThreadPageProps) {
   });
 
   const reactionsByMessage = reactions.reduce<Record<string, { emoji: string; count: number }[]>>(
-    (acc, reaction) => {
+    (acc: Record<string, { emoji: string; count: number }[]>, reaction) => {
       acc[reaction.messageId] ??= [];
       acc[reaction.messageId].push({
         emoji: reaction.emoji,
