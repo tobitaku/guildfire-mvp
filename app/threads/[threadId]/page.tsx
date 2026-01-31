@@ -51,7 +51,7 @@ export default async function ThreadPage({ params }: ThreadPageProps) {
   }
 
   type ThreadMessage = (typeof thread.messages)[number];
-  const messageIds = thread.messages.map((message) => message.id);
+  const messageIds = thread.messages.map((message: ThreadMessage) => message.id);
 
   async function createMessageAction(formData: FormData) {
     "use server";
