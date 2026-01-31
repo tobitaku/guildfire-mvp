@@ -50,6 +50,9 @@ export default async function ThreadPage({ params }: ThreadPageProps) {
     );
   }
 
+  type ThreadMessage = (typeof thread.messages)[number];
+  const messageIds = thread.messages.map((message) => message.id);
+
   async function createMessageAction(formData: FormData) {
     "use server";
     const content = String(formData.get("content") ?? "").trim();
@@ -109,7 +112,7 @@ export default async function ThreadPage({ params }: ThreadPageProps) {
     _count: { emoji: true },
     where: {
       messageId: {
-        in: thread?.messages.map((message) => message.id) ?? [],
+        in: messageIds,
       },
     },
   });
@@ -132,7 +135,7 @@ export default async function ThreadPage({ params }: ThreadPageProps) {
       where: {
         userId: session.user.id,
         messageId: {
-          in: thread?.messages.map((message) => message.id) ?? [],
+          in: messageIds,
         },
       },
       select: { messageId: true, emoji: true },
@@ -193,7 +196,7 @@ export default async function ThreadPage({ params }: ThreadPageProps) {
               <p className="text-sm text-muted-foreground">No messages yet.</p>
             ) : (
               <div className="flex flex-col gap-4">
-                {thread.messages.map((message) => (
+                {thread.messages.map((message: ThreadMessage) => (
                   <MessageItem
                     key={message.id}
                     id={message.id}
