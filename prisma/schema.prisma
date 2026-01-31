@@ -6,10 +6,117 @@ datasource db {
   provider = "postgresql"
 }
 
+enum ChannelType {
+  TEXT
+}
+
 model User {
+  id          String   @id @default(cuid())
+  username    String
+  displayName String?  @map("display_name")
+  email       String?  @unique
+  imageUrl    String?  @map("image_url")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  ownedGuilds     Guild[]            @relation("GuildOwner")
+  memberships    GuildMember[]
+  threads        Thread[]           @relation("ThreadCreator")
+  messages       Message[]          @relation("MessageAuthor")
+  deletions      Message[]          @relation("MessageDeletedBy")
+  reactions      MessageReaction[]
+
+  @@map("users")
+}
+
+model Guild {
   id        String   @id @default(cuid())
-  email     String   @unique
-  name      String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  name      String
+  slug      String   @unique
+  ownerId   String   @map("owner_id")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  owner       User          @relation("GuildOwner", fields: [ownerId], references: [id])
+  members     GuildMember[]
+  channels    Channel[]
+
+  @@map("guilds")
+}
+
+model GuildMember {
+  guildId  String   @map("guild_id")
+  userId   String   @map("user_id")
+  nickname String?
+  joinedAt DateTime @default(now()) @map("joined_at")
+
+  guild Guild @relation(fields: [guildId], references: [id])
+  user  User  @relation(fields: [userId], references: [id])
+
+  @@id([guildId, userId])
+  @@map("guild_members")
+}
+
+model Channel {
+  id        String      @id @default(cuid())
+  guildId   String      @map("guild_id")
+  name      String
+  type      ChannelType @default(TEXT)
+  position  Int
+  createdAt DateTime    @default(now()) @map("created_at")
+  updatedAt DateTime    @updatedAt @map("updated_at")
+
+  guild   Guild    @relation(fields: [guildId], references: [id])
+  threads Thread[]
+
+  @@map("channels")
+}
+
+model Thread {
+  id          String   @id @default(cuid())
+  channelId   String   @map("channel_id")
+  title       String
+  createdById String   @map("created_by_id")
+  isLocked    Boolean  @default(false) @map("is_locked")
+  isArchived  Boolean  @default(false) @map("is_archived")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  channel   Channel  @relation(fields: [channelId], references: [id])
+  createdBy User     @relation("ThreadCreator", fields: [createdById], references: [id])
+  messages  Message[]
+
+  @@map("threads")
+}
+
+model Message {
+  id          String   @id @default(cuid())
+  threadId    String   @map("thread_id")
+  authorId    String   @map("author_id")
+  content     String   @db.Text
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+  editedAt    DateTime? @map("edited_at")
+  deletedAt   DateTime? @map("deleted_at")
+  deletedById String?  @map("deleted_by_id")
+
+  thread     Thread           @relation(fields: [threadId], references: [id])
+  author     User             @relation("MessageAuthor", fields: [authorId], references: [id])
+  deletedBy  User?            @relation("MessageDeletedBy", fields: [deletedById], references: [id])
+  reactions  MessageReaction[]
+
+  @@map("messages")
+}
+
+model MessageReaction {
+  messageId String   @map("message_id")
+  userId    String   @map("user_id")
+  emoji     String
+  createdAt DateTime @default(now()) @map("created_at")
+
+  message Message @relation(fields: [messageId], references: [id])
+  user    User    @relation(fields: [userId], references: [id])
+
+  @@id([messageId, userId, emoji])
+  @@map("message_reactions")
 }
