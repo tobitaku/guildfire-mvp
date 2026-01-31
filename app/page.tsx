@@ -47,7 +47,15 @@ export default async function Home() {
                 ) : null}
               </div>
             ) : null}
-            <AuthButton className="w-full" />
+            <div className="flex w-full flex-col gap-3">
+              <AuthButton className="w-full" />
+              <a
+                href="/guilds/gaming-hub"
+                className="rounded-md border border-border/60 bg-[#1b1d2b] px-4 py-2 text-center text-sm text-muted-foreground transition hover:bg-[#232539] hover:text-white"
+              >
+                Browse channels
+              </a>
+            </div>
             <p className="text-xs text-muted-foreground">
               The Discord provider requires credentials in your environment variables.
             </p>

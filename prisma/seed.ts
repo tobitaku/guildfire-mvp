@@ -139,6 +139,83 @@ async function main() {
       roleId: ensuredAdminRole.id,
     },
   });
+
+  const channels = await prisma.channel.findMany({
+    where: { guildId: guild.id },
+    select: { id: true, name: true },
+  });
+
+  const channelByName = new Map(channels.map((channel) => [channel.name, channel]));
+
+  const seedThreads = [
+    {
+      channel: "general",
+      title: "Welcome to Gaming Hub",
+      messages: [
+        "Hey everyone! Introduce yourself and share what you play.",
+        "If you're new, check out the rules and have fun!",
+      ],
+    },
+    {
+      channel: "pc-gaming",
+      title: "PC build advice for 2026",
+      messages: [
+        "Thinking about a mid-range build. Any GPU recommendations?",
+        "I just finished a build, happy to share parts list.",
+      ],
+    },
+    {
+      channel: "console",
+      title: "Console co-op night",
+      messages: [
+        "Anyone up for co-op this weekend?",
+        "I can host. Drop your gamertag if you're in.",
+      ],
+    },
+    {
+      channel: "help",
+      title: "Issue posting screenshots",
+      messages: [
+        "Images won't upload for me. Anyone else?",
+        "Try a different browser, that helped me.",
+      ],
+    },
+  ];
+
+  for (const threadSeed of seedThreads) {
+    const channel = channelByName.get(threadSeed.channel);
+    if (!channel) continue;
+
+    const existingThread = await prisma.thread.findFirst({
+      where: { channelId: channel.id, title: threadSeed.title },
+      select: { id: true },
+    });
+
+    const thread =
+      existingThread ??
+      (await prisma.thread.create({
+        data: {
+          channelId: channel.id,
+          title: threadSeed.title,
+          createdById: adminUser.id,
+        },
+      }));
+
+    const existingMessageCount = await prisma.message.count({
+      where: { threadId: thread.id },
+    });
+
+    if (existingMessageCount === 0) {
+      await prisma.message.createMany({
+        data: threadSeed.messages.map((content, index) => ({
+          threadId: thread.id,
+          authorId: adminUser.id,
+          content,
+          createdAt: new Date(Date.now() + index * 1000),
+        })),
+      });
+    }
+  }
 }
 
 main()

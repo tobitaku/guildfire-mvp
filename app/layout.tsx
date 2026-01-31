@@ -1,9 +1,11 @@
 import type { Metadata } from 'next';
+import Link from 'next/link';
 import { Geist, Geist_Mono } from 'next/font/google';
 import './globals.css';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { Providers } from '@/app/providers';
+import { Button } from '@/components/ui/button';
 
 const geistSans = Geist({
   variable: '--font-geist-sans',
@@ -32,7 +34,26 @@ export default async function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
-        <Providers session={session}>{children}</Providers>
+        <Providers session={session}>
+          {session?.user ? (
+            <header className="sticky top-0 z-20 border-b border-border/60 bg-[#14151f]/80 backdrop-blur">
+              <div className="mx-auto flex w-full max-w-6xl items-center justify-between px-6 py-4">
+                <Link href="/" className="text-sm font-semibold text-white">
+                  Guildfire
+                </Link>
+                <nav className="flex items-center gap-2">
+                  <Button asChild variant="ghost" size="sm">
+                    <Link href="/">Home</Link>
+                  </Button>
+                  <Button asChild variant="secondary" size="sm">
+                    <Link href="/logout">Logout</Link>
+                  </Button>
+                </nav>
+              </div>
+            </header>
+          ) : null}
+          {children}
+        </Providers>
       </body>
     </html>
   );
